@@ -50,6 +50,10 @@ public class LevelGauge : Control
         set => SetValue(ToleranceProperty, value);
     }
 
+    /// <summary>缓存指针几何，尺寸不变时复用，避免每帧重建</summary>
+    private StreamGeometry? _pointerGeometry;
+    private double _pointerGeometryHalf;
+
     public override void Render(DrawingContext context)
     {
         var size = Math.Min(Bounds.Width, Bounds.Height);
@@ -75,18 +79,7 @@ public class LevelGauge : Control
         context.DrawRectangle(null, FramePen, new RoundedRect(window, radius));
 
         // 前景：指针（含中心点）
-        var pointerTip = new Point(center.X, center.Y - half * 0.78);
-        var pointerBaseY = center.Y + half * 0.12;
-        var halfBase = half * 0.16;
-
-        var pointer = new StreamGeometry();
-        using (var geometry = pointer.Open())
-        {
-            geometry.BeginFigure(pointerTip, true);
-            geometry.LineTo(new Point(center.X - halfBase, pointerBaseY));
-            geometry.LineTo(new Point(center.X + halfBase, pointerBaseY));
-            geometry.EndFigure(true);
-        }
+        var pointer = GetPointerGeometry(center, half);
 
         // 手机端指针固定在屏幕上、地平线旋转 angle；等价于地平线固定时指针反向旋转
         var radians = -Math.Clamp(Angle, -MaxPointerAngle, MaxPointerAngle) * Math.PI / 180.0;
@@ -95,5 +88,31 @@ public class LevelGauge : Control
             context.DrawGeometry(accent, new Pen(accent, 1), pointer);
             context.DrawEllipse(accent, null, center, 5, 5);
         }
+    }
+
+    /// <summary>三角指针几何（依赖控件尺寸），尺寸不变时复用同一份</summary>
+    private StreamGeometry GetPointerGeometry(Point center, double half)
+    {
+        if (_pointerGeometry is not null && Math.Abs(_pointerGeometryHalf - half) < 0.5)
+        {
+            return _pointerGeometry;
+        }
+
+        var pointerTip = new Point(center.X, center.Y - half * 0.78);
+        var pointerBaseY = center.Y + half * 0.12;
+        var halfBase = half * 0.16;
+
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
+        {
+            ctx.BeginFigure(pointerTip, true);
+            ctx.LineTo(new Point(center.X - halfBase, pointerBaseY));
+            ctx.LineTo(new Point(center.X + halfBase, pointerBaseY));
+            ctx.EndFigure(true);
+        }
+
+        _pointerGeometry = geometry;
+        _pointerGeometryHalf = half;
+        return geometry;
     }
 }
