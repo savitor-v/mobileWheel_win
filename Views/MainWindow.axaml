@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:MobileWheel.Win.ViewModels"
-        xmlns:models="clr-namespace:MobileWheel.Win.Models"
         xmlns:controls="clr-namespace:MobileWheel.Win.Controls"
         x:Class="MobileWheel.Win.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -28,7 +27,7 @@
     </Style>
   </Window.Styles>
 
-  <Grid Margin="12" RowDefinitions="Auto,*,240" ColumnDefinitions="360,*">
+  <Grid Margin="12" RowDefinitions="Auto,*,240" ColumnDefinitions="300,*">
 
     <!-- 连接状态 -->
     <Border Grid.Row="0" Grid.ColumnSpan="2" Classes="card" Margin="0,0,0,12">
@@ -41,71 +40,28 @@
       </DockPanel>
     </Border>
 
-    <!-- 左侧：BLE 设备列表 + 局域网连接 -->
-    <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,12,12">
-    <Border Grid.Row="0" Classes="card">
-      <Grid RowDefinitions="Auto,*,Auto,Auto">
-        <DockPanel>
-          <Button DockPanel.Dock="Right" Padding="12,4"
-                  Content="{Binding ScanButtonText}" Command="{Binding ToggleScanCommand}" />
-          <TextBlock Text="附近的 BLE 设备" Classes="section" />
-        </DockPanel>
-
-        <ListBox Grid.Row="1" Margin="0,10,0,0"
-                 ItemsSource="{Binding Devices}"
-                 SelectedItem="{Binding SelectedDevice}">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="models:TiltDevice">
-              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-                <Border IsVisible="{Binding IsTiltDevice}" Background="#064E3B" CornerRadius="4"
-                        Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
-                  <TextBlock Text="水平仪" FontSize="11" Foreground="#6EE7B7" />
-                </Border>
-                <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Text="{Binding AddressText}" Classes="field" />
-                </StackPanel>
-                <TextBlock Grid.Column="2" Text="{Binding RssiText}" Classes="field"
-                           VerticalAlignment="Center" />
-              </Grid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+    <!-- 左侧：局域网连接（手机是服务端） -->
+    <Border Grid.Row="1" Grid.Column="0" Classes="card" VerticalAlignment="Top" Margin="0,0,12,12">
+      <StackPanel Spacing="10">
+        <TextBlock Text="局域网连接（手机为服务端）" Classes="section" />
+        <TextBox Watermark="IP:端口，例如 192.168.1.100:11223"
+                 Text="{Binding ServerEndpoint}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
           <Button Content="连接" Padding="16,4" Command="{Binding ConnectCommand}" />
           <Button Content="断开" Padding="16,4" Command="{Binding DisconnectCommand}" />
-          <Button Content="清空列表" Padding="12,4" Command="{Binding ClearDevicesCommand}" />
         </StackPanel>
-
-        <CheckBox Grid.Row="3" Margin="0,8,0,0" Content="断开后自动重连"
-                  IsChecked="{Binding AutoReconnect}" />
-      </Grid>
+        <CheckBox Content="断线后自动重连" IsChecked="{Binding AutoReconnect}" />
+        <TextBlock Classes="field" TextWrapping="Wrap"
+                   Text="手机上点“开始监测”与“开启局域网”，把手机上「本机 IP」一行显示的地址加上 :11223 填到这里。手机端已开启后台保活，切到后台或熄屏都会继续发送。" />
+      </StackPanel>
     </Border>
 
-      <!-- 局域网（TCP）连接：手机是服务端 -->
-      <Border Grid.Row="1" Classes="card" Margin="0,12,0,0">
-        <StackPanel Spacing="8">
-          <TextBlock Text="局域网连接（手机为服务端）" Classes="section" />
-          <TextBox Width="220" HorizontalAlignment="Left"
-                   Watermark="IP:端口，例如 192.168.1.100:11223"
-                   Text="{Binding ServerEndpoint}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="连接" Padding="16,4" Command="{Binding ConnectLanCommand}" />
-            <Button Content="断开" Padding="16,4" Command="{Binding DisconnectLanCommand}" />
-          </StackPanel>
-          <TextBlock Classes="field" TextWrapping="Wrap"
-                     Text="手机上点“开启局域网”与“开始监测”，把状态栏显示的地址填到上面。" />
-        </StackPanel>
-      </Border>
-    </Grid>
-
-    <!-- 水平仪仪表盘 -->
+    <!-- 水平仪：固定地平线 + 随倾角旋转的指针 -->
     <Border Grid.Row="1" Grid.Column="1" Classes="card" Margin="0,0,0,12">
       <Grid RowDefinitions="Auto,*">
-        <TextBlock Text="倾斜角仪表" Classes="section" />
+        <TextBlock Text="水平仪（固地平线 · 指针随倾角转动）" Classes="section" />
         <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-          <controls:LevelGauge Width="280" Height="280" HorizontalAlignment="Center"
+          <controls:LevelGauge Width="300" Height="300" HorizontalAlignment="Center"
                                Angle="{Binding Angle}" />
           <TextBlock Text="{Binding AngleText}" FontSize="46" FontWeight="Bold"
                      Foreground="{Binding DirectionBrush}" HorizontalAlignment="Center" />

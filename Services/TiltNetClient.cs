@@ -5,7 +5,6 @@ namespace MobileWheel.Win.Services;
 
 /// <summary>
 /// 倾斜角局域网客户端（TCP）：连接安卓端监听的端口，按行读取 JSON 数据。
-/// 对外事件与 TiltBleClient 保持一致，界面层不需要区分传输通道。
 /// </summary>
 public sealed class TiltNetClient : IDisposable
 {
@@ -58,6 +57,17 @@ public sealed class TiltNetClient : IDisposable
         _stream = client.GetStream();
         _parser.Reset();
         _cts = new CancellationTokenSource();
+
+        // 开启 keep-alive 与低延迟，长时间挂机时能更快察觉对端掉线
+        client.NoDelay = true;
+        try
+        {
+            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+        }
+        catch (SocketException ex)
+        {
+            Log?.Invoke(this, $"设置 keep-alive 失败（可忽略）: {ex.Message}");
+        }
 
         Log?.Invoke(this, $"已连接：{host}:{port}");
         ConnectionStateChanged?.Invoke(this, true);
