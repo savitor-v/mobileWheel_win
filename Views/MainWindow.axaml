@@ -1,0 +1,128 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MobileWheel.Win.ViewModels"
+        xmlns:models="clr-namespace:MobileWheel.Win.Models"
+        xmlns:controls="clr-namespace:MobileWheel.Win.Controls"
+        x:Class="MobileWheel.Win.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="mobileWheel · Windows 蓝牙水平仪"
+        Width="1160" Height="800" MinWidth="980" MinHeight="680"
+        Background="#0F172A">
+
+  <Window.Styles>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="BorderBrush" Value="#334155" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.field">
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="12" RowDefinitions="Auto,*,240" ColumnDefinitions="360,*">
+
+    <!-- 连接状态 -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" Classes="card" Margin="0,0,0,12">
+      <DockPanel>
+        <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}"
+                 VerticalAlignment="Center" Margin="0,0,8,0" />
+        <TextBlock DockPanel.Dock="Right" Classes="field" VerticalAlignment="Center"
+                   Text="{Binding ReadingCountText}" />
+        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <!-- 设备列表 -->
+    <Border Grid.Row="1" Grid.Column="0" Classes="card" Margin="0,0,12,12">
+      <Grid RowDefinitions="Auto,*,Auto,Auto">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Padding="12,4"
+                  Content="{Binding ScanButtonText}" Command="{Binding ToggleScanCommand}" />
+          <TextBlock Text="附近的 BLE 设备" Classes="section" />
+        </DockPanel>
+
+        <ListBox Grid.Row="1" Margin="0,10,0,0"
+                 ItemsSource="{Binding Devices}"
+                 SelectedItem="{Binding SelectedDevice}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="models:TiltDevice">
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                <Border IsVisible="{Binding IsTiltDevice}" Background="#064E3B" CornerRadius="4"
+                        Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
+                  <TextBlock Text="水平仪" FontSize="11" Foreground="#6EE7B7" />
+                </Border>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding AddressText}" Classes="field" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding RssiText}" Classes="field"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+          <Button Content="连接" Padding="16,4" Command="{Binding ConnectCommand}" />
+          <Button Content="断开" Padding="16,4" Command="{Binding DisconnectCommand}" />
+          <Button Content="清空列表" Padding="12,4" Command="{Binding ClearDevicesCommand}" />
+        </StackPanel>
+
+        <CheckBox Grid.Row="3" Margin="0,8,0,0" Content="断开后自动重连"
+                  IsChecked="{Binding AutoReconnect}" />
+      </Grid>
+    </Border>
+
+    <!-- 水平仪仪表盘 -->
+    <Border Grid.Row="1" Grid.Column="1" Classes="card" Margin="0,0,0,12">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Text="倾斜角仪表" Classes="section" />
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <controls:LevelGauge Width="280" Height="280" HorizontalAlignment="Center"
+                               Angle="{Binding Angle}" />
+          <TextBlock Text="{Binding AngleText}" FontSize="46" FontWeight="Bold"
+                     Foreground="{Binding DirectionBrush}" HorizontalAlignment="Center" />
+          <TextBlock Text="{Binding Direction}" FontSize="18"
+                     Foreground="{Binding DirectionBrush}" HorizontalAlignment="Center" />
+          <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto"
+                ColumnSpacing="18" RowSpacing="4" HorizontalAlignment="Center" Margin="0,6,0,0">
+            <TextBlock Text="屏幕方向" Classes="field" />
+            <TextBlock Grid.Column="1" Text="{Binding RotationText}" FontSize="12" />
+            <TextBlock Grid.Row="1" Text="最近更新" Classes="field" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdatedAtText}" FontSize="12" />
+          </Grid>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- 数据日志 -->
+    <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="card">
+      <Grid RowDefinitions="Auto,*">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Padding="12,4" Content="清空日志"
+                  Command="{Binding ClearLogCommand}" />
+          <TextBlock Text="{Binding LogHeader}" Classes="section" />
+        </DockPanel>
+        <ScrollViewer Grid.Row="1" Margin="0,8,0,0">
+          <ItemsControl ItemsSource="{Binding LogEntries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" Foreground="#CBD5E1" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>
