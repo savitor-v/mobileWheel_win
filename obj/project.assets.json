@@ -1285,11 +1285,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj",
+      "projectUniqueName": "d:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
       "projectName": "mobileWheel_win",
-      "projectPath": "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj",
+      "projectPath": "d:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
       "packagesPath": "C:\\Users\\savitor\\.nuget\\packages\\",
-      "outputPath": "d:\\AndroidProject\\mobileWheel_win\\obj\\",
+      "outputPath": "d:\\AndroidProject\\mobileWheel\\mobileWheel_win\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\savitor\\AppData\\Roaming\\NuGet\\NuGet.Config"

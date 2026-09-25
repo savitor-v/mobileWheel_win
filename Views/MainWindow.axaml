@@ -5,7 +5,7 @@
         xmlns:controls="clr-namespace:MobileWheel.Win.Controls"
         x:Class="MobileWheel.Win.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="mobileWheel · Windows 蓝牙水平仪"
+        Title="mobileWheel · Windows 水平仪"
         Width="1160" Height="800" MinWidth="980" MinHeight="680"
         Background="#0F172A">
 
@@ -41,8 +41,9 @@
       </DockPanel>
     </Border>
 
-    <!-- 设备列表 -->
-    <Border Grid.Row="1" Grid.Column="0" Classes="card" Margin="0,0,12,12">
+    <!-- 左侧：BLE 设备列表 + 局域网连接 -->
+    <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,12,12">
+    <Border Grid.Row="0" Classes="card">
       <Grid RowDefinitions="Auto,*,Auto,Auto">
         <DockPanel>
           <Button DockPanel.Dock="Right" Padding="12,4"
@@ -81,6 +82,23 @@
                   IsChecked="{Binding AutoReconnect}" />
       </Grid>
     </Border>
+
+      <!-- 局域网（TCP）连接：手机是服务端 -->
+      <Border Grid.Row="1" Classes="card" Margin="0,12,0,0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="局域网连接（手机为服务端）" Classes="section" />
+          <TextBox Width="220" HorizontalAlignment="Left"
+                   Watermark="IP:端口，例如 192.168.1.100:11223"
+                   Text="{Binding ServerEndpoint}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="连接" Padding="16,4" Command="{Binding ConnectLanCommand}" />
+            <Button Content="断开" Padding="16,4" Command="{Binding DisconnectLanCommand}" />
+          </StackPanel>
+          <TextBlock Classes="field" TextWrapping="Wrap"
+                     Text="手机上点“开启局域网”与“开始监测”，把状态栏显示的地址填到上面。" />
+        </StackPanel>
+      </Border>
+    </Grid>
 
     <!-- 水平仪仪表盘 -->
     <Border Grid.Row="1" Grid.Column="1" Classes="card" Margin="0,0,0,12">

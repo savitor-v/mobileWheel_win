@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "9d/F9yXnSPM=",
+  "dgSpecHash": "hKQBQuMtpBY=",
   "success": true,
-  "projectFilePath": "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj",
+  "projectFilePath": "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\savitor\\.nuget\\packages\\avalonia\\11.3.22\\avalonia.11.3.22.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.25547.20250602\\avalonia.angle.windows.natives.2.1.25547.20250602.nupkg.sha512",

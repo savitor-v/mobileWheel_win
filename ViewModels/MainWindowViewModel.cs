@@ -21,20 +21,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private static readonly IBrush TiltBrush = new SolidColorBrush(Color.Parse("#FBBF24"));
 
     private readonly TiltBleClient _ble = new();
+    private readonly TiltNetClient _net = new();
     private readonly Dictionary<ulong, TiltDevice> _deviceIndex = new();
 
     private DateTime _lastDataLogAt = DateTime.MinValue;
     private bool _disconnectRequested;
     private bool _disposed;
 
+    /// <summary>当前已连接目标的名字，用于状态栏显示</summary>
+    private string? _connectedLabel;
+
     public MainWindowViewModel()
     {
         _ble.DeviceDiscovered += OnDeviceDiscovered;
         _ble.Log += OnLog;
         _ble.ReadingReceived += OnReadingReceived;
-        _ble.ConnectionStateChanged += OnConnectionStateChanged;
+        _ble.ConnectionStateChanged += (_, connected) => OnConnectionStateChanged(connected, isBle: true);
 
-        AppendLog("就绪：点击“开始扫描”，然后连接安卓端水平仪");
+        _net.Log += OnLog;
+        _net.ReadingReceived += OnReadingReceived;
+        _net.ConnectionStateChanged += (_, connected) => OnConnectionStateChanged(connected, isBle: false);
+
+        AppendLog("就绪：可扫描 BLE 设备连接，也可直接输入手机的局域网地址连接");
     }
 
     public ObservableCollection<TiltDevice> Devices { get; } = new();
@@ -49,12 +57,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(StatusBrush))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(DisconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectLanCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DisconnectLanCommand))]
     private bool _isConnected;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(DisconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectLanCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DisconnectLanCommand))]
     private bool _isBusy;
+
+    /// <summary>局域网连接目标，格式 host:port</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectLanCommand))]
+    private string _serverEndpoint = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
@@ -131,12 +148,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (target is null) return;
 
         IsBusy = true;
+        _connectedLabel = target.DisplayName;
         try
         {
             await _ble.ConnectAsync(target);
         }
         catch (Exception ex)
         {
+            _connectedLabel = null;
             AppendLog($"连接失败：{ex.Message}");
         }
         finally
@@ -173,6 +192,65 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Devices.Clear();
         _ble.StartScan();
         IsScanning = true;
+    }
+
+    /// <summary>解析 "IP:端口"，格式不对时返回 null</summary>
+    private static (string Host, int Port)? ParseEndpoint(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var parts = text.Trim().Split(':');
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0])) return null;
+        if (!int.TryParse(parts[1], out var port) || port is <= 0 or > 65535) return null;
+
+        return (parts[0].Trim(), port);
+    }
+
+    private bool CanConnectLan() => !IsConnected && !IsBusy && ParseEndpoint(ServerEndpoint) is not null;
+
+    [RelayCommand(CanExecute = nameof(CanConnectLan))]
+    private async Task ConnectLan()
+    {
+        var parsed = ParseEndpoint(ServerEndpoint);
+        if (parsed is null) return;
+        var (host, port) = parsed.Value;
+
+        IsBusy = true;
+        _connectedLabel = $"{host}:{port}";
+        try
+        {
+            await _net.ConnectAsync(host, port);
+        }
+        catch (Exception ex)
+        {
+            _connectedLabel = null;
+            AppendLog($"连接失败：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private bool CanDisconnectLan() => _net.IsConnected && !IsBusy;
+
+    [RelayCommand(CanExecute = nameof(CanDisconnectLan))]
+    private async Task DisconnectLan()
+    {
+        _disconnectRequested = true;
+        IsBusy = true;
+        try
+        {
+            await _net.DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"断开时出错：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private void OnDeviceDiscovered(object? sender, TiltDevice device)
@@ -214,7 +292,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         });
     }
 
-    private void OnConnectionStateChanged(object? sender, bool connected)
+    private void OnConnectionStateChanged(bool connected, bool isBle)
     {
         Dispatcher.UIThread.Post(() =>
         {
@@ -230,6 +308,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             var userInitiated = _disconnectRequested;
             _disconnectRequested = false;
+            _connectedLabel = null;
 
             Angle = 0;
             Direction = "等待数据";
@@ -237,7 +316,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             UpdatedAtText = "—";
             UpdateStatusText();
 
-            if (!userInitiated && AutoReconnect && !_disposed)
+            // 只有蓝牙链路才靠重新扫描恢复；局域网断线由用户重新点“连接”
+            if (!userInitiated && AutoReconnect && isBle && !_disposed)
             {
                 AppendLog("连接意外断开，自动重新扫描…");
                 RestartScan();
@@ -290,7 +370,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void UpdateStatusText() =>
         StatusText = (IsConnected, IsScanning) switch
         {
-            (true, _) => $"已连接 · {SelectedDevice?.DisplayName ?? "设备"}",
+            (true, _) => $"已连接 · {_connectedLabel ?? "设备"}",
             (false, true) => "扫描中…",
             (false, false) => "未连接"
         };
@@ -309,7 +389,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _ble.DeviceDiscovered -= OnDeviceDiscovered;
         _ble.Log -= OnLog;
         _ble.ReadingReceived -= OnReadingReceived;
-        _ble.ConnectionStateChanged -= OnConnectionStateChanged;
         _ble.Dispose();
+
+        _net.Log -= OnLog;
+        _net.ReadingReceived -= OnReadingReceived;
+        _net.Dispose();
     }
 }

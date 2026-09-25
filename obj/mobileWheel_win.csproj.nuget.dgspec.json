@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj": {}
+    "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj": {}
   },
   "projects": {
-    "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj": {
+    "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj",
+        "projectUniqueName": "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
         "projectName": "mobileWheel_win",
-        "projectPath": "d:\\AndroidProject\\mobileWheel_win\\mobileWheel_win.csproj",
+        "projectPath": "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
         "packagesPath": "C:\\Users\\savitor\\.nuget\\packages\\",
-        "outputPath": "d:\\AndroidProject\\mobileWheel_win\\obj\\",
+        "outputPath": "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\savitor\\AppData\\Roaming\\NuGet\\NuGet.Config"
