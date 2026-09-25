@@ -100,11 +100,32 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _gamepadStatus = "虚拟方向盘：未启用";
 
+    /// <summary>手机端左滑动条传来的扳机值（0..255）</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LeftTriggerText))]
+    [NotifyPropertyChangedFor(nameof(LeftTriggerValue))]
+    private int _leftTrigger;
+
+    /// <summary>手机端右滑动条传来的扳机值（0..255）</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RightTriggerText))]
+    [NotifyPropertyChangedFor(nameof(RightTriggerValue))]
+    private int _rightTrigger;
+
     public IBrush StatusBrush => IsConnected ? ConnectedBrush : IdleBrush;
 
     public IBrush DirectionBrush => Math.Abs(Angle) <= 0.5 ? LevelBrush : TiltBrush;
 
     public string AngleText => $"{Angle:0.0}°";
+
+    public string LeftTriggerText => $"{LeftTrigger} / 255";
+
+    public string RightTriggerText => $"{RightTrigger} / 255";
+
+    /// <summary>进度条用：0..255 的整型转成 double</summary>
+    public double LeftTriggerValue => LeftTrigger;
+
+    public double RightTriggerValue => RightTrigger;
 
     public string ReadingCountText => $"已接收 {ReadingCount} 帧";
 
@@ -248,12 +269,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void OnReadingReceived(object? sender, TiltReading reading)
     {
         // 在数据线程直接喂给虚拟手柄，省掉一次 UI 线程派发带来的延迟
-        if (GamepadEnabled) _gamepad.Update(reading.Angle);
+        if (GamepadEnabled) _gamepad.Update(reading.Angle, reading.LeftTrigger, reading.RightTrigger);
 
         Dispatcher.UIThread.Post(() =>
         {
             Angle = reading.Angle;
             Direction = string.IsNullOrWhiteSpace(reading.Direction) ? "未知" : reading.Direction;
+            LeftTrigger = reading.LeftTrigger;
+            RightTrigger = reading.RightTrigger;
             RotationText = DescribeRotation(reading.Rotation);
             UpdatedAtText = reading.Timestamp > 0
                 ? DateTimeOffset.FromUnixTimeMilliseconds(reading.Timestamp).LocalDateTime.ToString("HH:mm:ss.fff")
@@ -289,6 +312,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             Angle = 0;
             Direction = "等待数据";
+            LeftTrigger = 0;
+            RightTrigger = 0;
             RotationText = "—";
             UpdatedAtText = "—";
             // 没数据了先把方向盘回中，避免游戏里保持满舵

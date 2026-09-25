@@ -58,6 +58,20 @@
         <TextBlock Classes="field" TextWrapping="Wrap" Text="{Binding GamepadStatus}" />
         <TextBlock Classes="field" TextWrapping="Wrap"
                    Text="勾选后系统里会多出一个 Xbox 360 手柄，左摇杆 X 轴跟随手机倾角（±90° 满舵）。游戏里把转向轴绑到「左摇杆 X / Left Stick X」即可。需要已安装 ViGEmBus 驱动。" />
+        <Separator Background="#334155" Height="1" />
+        <TextBlock Text="扳机模拟量（手机端左右滑动条）" Classes="section" />
+        <Grid ColumnDefinitions="24,*,62" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+          <TextBlock Text="LT" Classes="field" VerticalAlignment="Center" />
+          <ProgressBar Grid.Column="1" Minimum="0" Maximum="255" Value="{Binding LeftTriggerValue}"
+                       Height="12" VerticalAlignment="Center" Foreground="#22D3EE" Background="#0F172A" />
+          <TextBlock Grid.Column="2" Text="{Binding LeftTriggerText}" FontSize="12" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Text="RT" Classes="field" VerticalAlignment="Center" />
+          <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="255" Value="{Binding RightTriggerValue}"
+                       Height="12" VerticalAlignment="Center" Foreground="#F59E0B" Background="#0F172A" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding RightTriggerText}" FontSize="12" VerticalAlignment="Center" />
+        </Grid>
+        <TextBlock Classes="field" TextWrapping="Wrap"
+                   Text="数值 0..255 与手柄扳机一致；手机端手指离开滑动条后自动归 0。" />
       </StackPanel>
     </Border>
 
