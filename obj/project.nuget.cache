@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "hKQBQuMtpBY=",
+  "dgSpecHash": "nugZ7P3WF/M=",
   "success": true,
-  "projectFilePath": "D:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
+  "projectFilePath": "d:\\AndroidProject\\mobileWheel\\mobileWheel_win\\mobileWheel_win.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\savitor\\.nuget\\packages\\avalonia\\11.3.22\\avalonia.11.3.22.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\avalonia.angle.windows.natives\\2.1.25547.20250602\\avalonia.angle.windows.natives.2.1.25547.20250602.nupkg.sha512",
@@ -22,6 +22,7 @@
     "C:\\Users\\savitor\\.nuget\\packages\\harfbuzzsharp.nativeassets.webassembly\\8.3.1.1\\harfbuzzsharp.nativeassets.webassembly.8.3.1.1.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\harfbuzzsharp.nativeassets.win32\\8.3.1.1\\harfbuzzsharp.nativeassets.win32.8.3.1.1.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\microcom.runtime\\0.11.0\\microcom.runtime.0.11.0.nupkg.sha512",
+    "C:\\Users\\savitor\\.nuget\\packages\\nefarius.vigem.client\\1.21.256\\nefarius.vigem.client.1.21.256.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\skiasharp\\2.88.9\\skiasharp.2.88.9.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\skiasharp.nativeassets.linux\\2.88.9\\skiasharp.nativeassets.linux.2.88.9.nupkg.sha512",
     "C:\\Users\\savitor\\.nuget\\packages\\skiasharp.nativeassets.macos\\2.88.9\\skiasharp.nativeassets.macos.2.88.9.nupkg.sha512",

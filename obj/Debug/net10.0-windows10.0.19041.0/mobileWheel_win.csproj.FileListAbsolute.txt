@@ -142,3 +142,4 @@ d:\AndroidProject\mobileWheel\mobileWheel_win\bin\Debug\net10.0-windows10.0.1904
 d:\AndroidProject\mobileWheel\mobileWheel_win\obj\Debug\net10.0-windows10.0.19041.0\mobileWh.A36B6B46.Up2Date
 d:\AndroidProject\mobileWheel\mobileWheel_win\obj\Debug\net10.0-windows10.0.19041.0\mobileWheel_win.genruntimeconfig.cache
 d:\AndroidProject\mobileWheel\mobileWheel_win\obj\Debug\net10.0-windows10.0.19041.0\ref\mobileWheel_win.dll
+d:\AndroidProject\mobileWheel\mobileWheel_win\bin\Debug\net10.0-windows10.0.19041.0\Nefarius.ViGEm.Client.dll

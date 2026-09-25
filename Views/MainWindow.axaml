@@ -53,6 +53,11 @@
         <CheckBox Content="断线后自动重连" IsChecked="{Binding AutoReconnect}" />
         <TextBlock Classes="field" TextWrapping="Wrap"
                    Text="手机上点“开始监测”与“开启局域网”，把手机上「本机 IP」一行显示的地址加上 :11223 填到这里。手机端已开启后台保活，切到后台或熄屏都会继续发送。" />
+        <Separator Background="#334155" Height="1" />
+        <CheckBox Content="模拟方向盘（虚拟 Xbox 360 手柄）" IsChecked="{Binding GamepadEnabled}" />
+        <TextBlock Classes="field" TextWrapping="Wrap" Text="{Binding GamepadStatus}" />
+        <TextBlock Classes="field" TextWrapping="Wrap"
+                   Text="勾选后系统里会多出一个 Xbox 360 手柄，左摇杆 X 轴跟随手机倾角（±90° 满舵）。游戏里把转向轴绑到「左摇杆 X / Left Stick X」即可。需要已安装 ViGEmBus 驱动。" />
       </StackPanel>
     </Border>
 

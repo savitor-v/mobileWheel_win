@@ -24,6 +24,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private static readonly IBrush TiltBrush = new SolidColorBrush(Color.Parse("#FBBF24"));
 
     private readonly TiltNetClient _net = new();
+    private readonly TiltGamepad _gamepad = new();
 
     private DateTime _lastDataLogAt = DateTime.MinValue;
     private bool _disconnectRequested;
@@ -43,6 +44,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _net.Log += OnLog;
         _net.ReadingReceived += OnReadingReceived;
         _net.ConnectionStateChanged += (_, connected) => OnConnectionStateChanged(connected);
+        _gamepad.Log += OnLog;
 
         AppendLog("就绪：手机上点“开始监测”与“开启局域网”，再把手机上显示的 IP:端口填到左侧");
     }
@@ -90,6 +92,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>意外断线后在后台自动重连</summary>
     [ObservableProperty]
     private bool _autoReconnect = true;
+
+    /// <summary>把手机倾角映射成虚拟 Xbox 360 手柄的左摇杆 X 轴，供游戏当方向盘用</summary>
+    [ObservableProperty]
+    private bool _gamepadEnabled;
+
+    [ObservableProperty]
+    private string _gamepadStatus = "虚拟方向盘：未启用";
 
     public IBrush StatusBrush => IsConnected ? ConnectedBrush : IdleBrush;
 
@@ -171,6 +180,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (!value) StopReconnectLoop();
     }
 
+    partial void OnGamepadEnabledChanged(bool value)
+    {
+        if (value) _gamepad.Connect();
+        else _gamepad.Disconnect();
+
+        UpdateGamepadStatus();
+    }
+
+    private void UpdateGamepadStatus() => GamepadStatus = GamepadEnabled
+        ? _gamepad.IsConnected
+            ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（±{TiltGamepad.FullLockAngle:0}° 满舵）"
+            : "虚拟方向盘：接入失败，见日志"
+        : "虚拟方向盘：未启用";
+
     /// <summary>
     /// 后台重连循环：意外断线后按固定间隔重试，直到连上、用户主动连接/断开或关闭自动重连。
     /// </summary>
@@ -224,6 +247,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void OnReadingReceived(object? sender, TiltReading reading)
     {
+        // 在数据线程直接喂给虚拟手柄，省掉一次 UI 线程派发带来的延迟
+        if (GamepadEnabled) _gamepad.Update(reading.Angle);
+
         Dispatcher.UIThread.Post(() =>
         {
             Angle = reading.Angle;
@@ -265,6 +291,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             Direction = "等待数据";
             RotationText = "—";
             UpdatedAtText = "—";
+            // 没数据了先把方向盘回中，避免游戏里保持满舵
+            _gamepad.Reset();
             UpdateStatusText();
 
             if (!userInitiated && AutoReconnect && _lastEndpoint is not null && !_disposed)
@@ -310,5 +338,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _net.Log -= OnLog;
         _net.ReadingReceived -= OnReadingReceived;
         _net.Dispose();
+
+        _gamepad.Log -= OnLog;
+        _gamepad.Dispose();
     }
 }
