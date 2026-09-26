@@ -25,4 +25,14 @@
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 内置 ViGEmBus 官方安装包（BSD-3-Clause，随包附 LICENSE）：
+         缺驱动时由 ViGEmBusInstaller 释放到临时目录并提权静默安装，目标机不用联网 -->
+    <EmbeddedResource Include="Assets\ViGEmBus_1.22.0_x64_x86_arm64.exe"
+                      LogicalName="MobileWheel.Win.ViGEmBusSetup.exe" />
+    <!-- 再分发要求：LICENSE 跟着程序一起发出去（放 exe 旁边，别塞进 Assets 子目录） -->
+    <None Update="Assets\ViGEmBus-LICENSE.txt" CopyToOutputDirectory="PreserveNewest"
+          TargetPath="ViGEmBus-LICENSE.txt" />
+  </ItemGroup>
+
 </Project>

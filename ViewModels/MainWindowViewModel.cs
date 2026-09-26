@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -55,6 +56,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _scanner.Log += OnLog;
 
         AppendLog("就绪：手机上点“开始监测”与“开启局域网”，再用左侧「扫描设备」或直接填手机 IP");
+
+        _ = RefreshViGEmBusStatusAsync();
     }
 
     public ObservableCollection<string> LogEntries { get; } = new();
@@ -125,6 +128,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _gamepadStatus = "虚拟方向盘：未启用";
+
+    /// <summary>内置安装包对应的 ViGEmBus 驱动状态文案</summary>
+    [ObservableProperty]
+    private string _viGEmBusStatus = "虚拟手柄驱动：检测中…";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(InstallDriverCommand))]
+    private bool _isInstallingDriver;
 
     /// <summary>手机端左滑动条传来的扳机值（0..255）</summary>
     [ObservableProperty]
@@ -341,6 +352,65 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（倾角 0°~{TiltGamepad.FullLockAngle:0}° 线性映射，超出按满舵截断）· LT/RT 对应左右滑动条 · X/A 对应顶部两个按键"
             : "虚拟方向盘：接入失败，见日志"
         : "虚拟方向盘：未启用";
+
+    /// <summary>启动时后台探一次驱动状态，只显示不安装（装驱动要用户主动点按钮）</summary>
+    private async Task RefreshViGEmBusStatusAsync()
+    {
+        var available = await Task.Run(ViGEmBusInstaller.IsDriverAvailable);
+        Dispatcher.UIThread.Post(() => ViGEmBusStatus = available
+            ? "虚拟手柄驱动：已安装"
+            : "虚拟手柄驱动：未安装（可点上方按钮一键安装）");
+    }
+
+    private bool CanInstallDriver() => !IsInstallingDriver;
+
+    /// <summary>一键安装内置的 ViGEmBus 驱动：释放随程序打包的官方安装包并提权静默安装</summary>
+    [RelayCommand(CanExecute = nameof(CanInstallDriver))]
+    private async Task InstallDriver()
+    {
+        IsInstallingDriver = true;
+        try
+        {
+            if (await Task.Run(ViGEmBusInstaller.IsDriverAvailable))
+            {
+                ViGEmBusStatus = "虚拟手柄驱动：已安装";
+                AppendLog("ViGEmBus 驱动已就绪，无需安装");
+                return;
+            }
+
+            ViGEmBusStatus = "虚拟手柄驱动：正在安装…";
+            AppendLog("开始安装内置的 ViGEmBus 驱动（会弹出 UAC 提权确认）…");
+
+            var exitCode = await ViGEmBusInstaller.InstallAsync();
+
+            if (await Task.Run(ViGEmBusInstaller.IsDriverAvailable))
+            {
+                ViGEmBusStatus = "虚拟手柄驱动：已安装";
+                AppendLog("ViGEmBus 驱动安装完成，可以勾选「模拟方向盘」了");
+                return;
+            }
+
+            ViGEmBusStatus = "虚拟手柄驱动：仍未生效，见日志";
+            // 0 与 3010（要求重启）都是安装成功，但设备节点要等系统重新加载
+            AppendLog(exitCode is 0 or 3010
+                ? "安装程序已正常退出，驱动可能要在重启电脑后才生效"
+                : $"安装程序退出码 {exitCode}，驱动未生效");
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ViGEmBusInstaller.ErrorCancelled)
+        {
+            ViGEmBusStatus = "虚拟手柄驱动：未安装（已取消提权）";
+            AppendLog("已取消 UAC 提权，驱动未安装");
+        }
+        catch (Exception ex)
+        {
+            ViGEmBusStatus = "虚拟手柄驱动：安装失败，见日志";
+            AppendLog($"安装 ViGEmBus 驱动失败：{ex.GetType().Name} {ex.Message}");
+        }
+        finally
+        {
+            IsInstallingDriver = false;
+        }
+    }
 
     /// <summary>
     /// 后台重连循环：意外断线后按固定间隔重试，直到连上、用户主动连接/断开或关闭自动重连。

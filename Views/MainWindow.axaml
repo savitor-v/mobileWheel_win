@@ -92,8 +92,15 @@
             </StackPanel>
           </CheckBox>
           <TextBlock Classes="field" TextWrapping="Wrap" Text="{Binding GamepadStatus}" />
+
+          <!-- 内置 ViGEmBus 官方安装包：缺驱动时释放到临时目录并提权静默安装，目标机不用联网 -->
+          <Button Content="安装虚拟手柄驱动" Padding="12,4" HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="安装虚拟手柄驱动"
+                  Command="{Binding InstallDriverCommand}" />
+          <TextBlock Classes="field" TextWrapping="Wrap" Text="{Binding ViGEmBusStatus}" />
+
           <TextBlock Classes="field" TextWrapping="Wrap"
-                     Text="勾选后会多出一个 Xbox 360 手柄：左摇杆 X 轴跟随手机倾角（可用角度 0°~60°，60° 为满舵），勾选时还会弹出一个置顶小窗实时显示方向盘与 LT / RT 模拟量。游戏里把转向轴绑到「左摇杆 X / Left Stick X」即可。需要已安装 ViGEmBus 驱动。" />
+                     Text="勾选后会多出一个 Xbox 360 手柄：左摇杆 X 轴跟随手机倾角（可用角度 0°~60°，60° 为满舵），勾选时还会弹出一个置顶小窗实时显示方向盘与 LT / RT 模拟量。游戏里把转向轴绑到「左摇杆 X / Left Stick X」即可。驱动用上面的按钮装，内置官方安装包，目标机不用联网，但会弹一次 UAC 提权。" />
         </StackPanel>
       </ScrollViewer>
     </Border>
