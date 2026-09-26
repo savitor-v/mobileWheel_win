@@ -25,6 +25,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private readonly TiltNetClient _net = new();
     private readonly TiltGamepad _gamepad = new();
+    private readonly LanScanner _scanner = new();
 
     private DateTime _lastDataLogAt = DateTime.MinValue;
     private bool _disconnectRequested;
@@ -39,33 +40,53 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>后台自动重连循环的取消源</summary>
     private CancellationTokenSource? _reconnectCts;
 
+    /// <summary>局域网扫描的取消源</summary>
+    private CancellationTokenSource? _scanCts;
+
     public MainWindowViewModel()
     {
         _net.Log += OnLog;
         _net.ReadingReceived += OnReadingReceived;
         _net.ConnectionStateChanged += (_, connected) => OnConnectionStateChanged(connected);
         _gamepad.Log += OnLog;
+        _scanner.Log += OnLog;
 
-        AppendLog("就绪：手机上点“开始监测”与“开启局域网”，再把手机上显示的 IP:端口填到左侧");
+        AppendLog("就绪：手机上点“开始监测”与“开启局域网”，再用左侧「扫描设备」或直接填手机 IP");
     }
 
     public ObservableCollection<string> LogEntries { get; } = new();
+
+    /// <summary>扫描到的局域网设备（已确认的排在前面）</summary>
+    public ObservableCollection<LanDevice> ScanDevices { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusBrush))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(DisconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectSelectedDeviceCommand))]
     private bool _isConnected;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DisconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectSelectedDeviceCommand))]
     private bool _isBusy;
 
-    /// <summary>局域网连接目标，格式 host:port</summary>
+    /// <summary>手机 IP。端口固定用 <see cref="TiltNetClient.DefaultPort"/>，不用（也不允许）填</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
-    private string _serverEndpoint = string.Empty;
+    private string _serverIp = string.Empty;
+
+    /// <summary>正在扫描局域网</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScanSummary))]
+    [NotifyCanExecuteChangedFor(nameof(ScanCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConnectSelectedDeviceCommand))]
+    private bool _isScanning;
+
+    /// <summary>扫描结果里被选中的设备（选中即回填 IP，可直接连接）</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectSelectedDeviceCommand))]
+    private LanDevice? _selectedDevice;
 
     [ObservableProperty]
     private string _statusText = "未连接";
@@ -73,6 +94,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AngleText))]
     [NotifyPropertyChangedFor(nameof(DirectionBrush))]
+    [NotifyPropertyChangedFor(nameof(SteeringText))]
+    [NotifyPropertyChangedFor(nameof(SteeringPointerAngle))]
     private double _angle;
 
     [ObservableProperty]
@@ -103,13 +126,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>手机端左滑动条传来的扳机值（0..255）</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LeftTriggerText))]
-    [NotifyPropertyChangedFor(nameof(LeftTriggerValue))]
+    [NotifyPropertyChangedFor(nameof(LeftTriggerBarHeight))]
     private int _leftTrigger;
 
     /// <summary>手机端右滑动条传来的扳机值（0..255）</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightTriggerText))]
-    [NotifyPropertyChangedFor(nameof(RightTriggerValue))]
+    [NotifyPropertyChangedFor(nameof(RightTriggerBarHeight))]
     private int _rightTrigger;
 
     public IBrush StatusBrush => IsConnected ? ConnectedBrush : IdleBrush;
@@ -117,6 +140,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public IBrush DirectionBrush => Math.Abs(Angle) <= 0.5 ? LevelBrush : TiltBrush;
 
     public string AngleText => $"{Angle:0.0}°";
+
+    /// <summary>倾角映射到摇杆 X 轴的比例（-1..1，负值 = 左打方向）</summary>
+    public double SteeringRatio => TiltGamepad.ToRatio(Angle);
+
+    /// <summary>方向盘指示箭头角度：0 居中，向左打方向为正值（箭头向左偏），满舵 ±60°</summary>
+    public double SteeringPointerAngle => -SteeringRatio * TiltGamepad.FullLockAngle;
+
+    public string SteeringText => TiltGamepad.ToAxis(Angle) == 0
+        ? "居中"
+        : $"{(SteeringRatio < 0 ? "左" : "右")} {Math.Abs(SteeringRatio) * 100:0}%";
 
     public string LeftTriggerText => $"{LeftTrigger} / 255";
 
@@ -127,33 +160,50 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public double RightTriggerValue => RightTrigger;
 
+    /// <summary>小窗竖条高度基准（逻辑像素），轨道与填充都以此为准</summary>
+    public const double TriggerBarHeight = 86;
+
+    public double LeftTriggerBarHeight => LeftTrigger / 255d * TriggerBarHeight;
+
+    public double RightTriggerBarHeight => RightTrigger / 255d * TriggerBarHeight;
+
     public string ReadingCountText => $"已接收 {ReadingCount} 帧";
+
+    /// <summary>扫描区的一行状态文本</summary>
+    public string ScanSummary => IsScanning
+        ? "正在扫描…"
+        : ScanDevices.Count > 0
+            ? $"发现 {ScanDevices.Count} 台设备"
+            : "尚未扫描";
 
     public string LogHeader => $"数据日志（保留最近 {MaxLogLines} 条）";
 
     [RelayCommand]
     private void ClearLog() => LogEntries.Clear();
 
-    /// <summary>解析 "IP:端口"，格式不对时返回 null</summary>
-    private static (string Host, int Port)? ParseEndpoint(string? text)
+    /// <summary>
+    /// 从输入框里取出主机地址：端口固定用 <see cref="TiltNetClient.DefaultPort"/>，
+    /// 所以用户只填 IP；即使填了 "IP:端口" 也把端口部分丢掉。空字符串返回 null。
+    /// </summary>
+    private static string? NormalizeHost(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
 
-        var parts = text.Trim().Split(':');
-        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0])) return null;
-        if (!int.TryParse(parts[1], out var port) || port is <= 0 or > 65535) return null;
+        var host = text.Trim();
+        var colon = host.IndexOf(':');
+        if (colon >= 0) host = host[..colon].Trim();
 
-        return (parts[0].Trim(), port);
+        return host.Length == 0 ? null : host;
     }
 
-    private bool CanConnect() => !IsConnected && !IsBusy && ParseEndpoint(ServerEndpoint) is not null;
+    private bool CanConnect() => !IsConnected && !IsBusy && NormalizeHost(ServerIp) is not null;
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task Connect()
     {
-        var parsed = ParseEndpoint(ServerEndpoint);
-        if (parsed is null) return;
-        var (host, port) = parsed.Value;
+        var host = NormalizeHost(ServerIp);
+        if (host is null) return;
+        var port = TiltNetClient.DefaultPort;
 
         StopReconnectLoop();
         IsBusy = true;
@@ -172,6 +222,65 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
         }
+    }
+
+    private bool CanScan() => !IsScanning;
+
+    /// <summary>扫描本机网段里开放 11223 端口的主机，结果填进设备列表</summary>
+    [RelayCommand(CanExecute = nameof(CanScan))]
+    private async Task Scan()
+    {
+        IsScanning = true;
+        ScanDevices.Clear();
+        SelectedDevice = null;
+
+        var cts = new CancellationTokenSource();
+        _scanCts = cts;
+        try
+        {
+            var devices = await _scanner.ScanAsync(TiltNetClient.DefaultPort, cts.Token);
+            foreach (var device in devices) ScanDevices.Add(device);
+
+            AppendLog(devices.Count == 0
+                ? "未发现设备：请确认手机已点「开启局域网」，且电脑与手机在同一个 Wi-Fi"
+                : $"扫描完成：发现 {devices.Count} 台设备（已确认 {devices.Count(d => d.Confirmed)} 台）");
+
+            if (devices.Count > 0) SelectedDevice = devices[0];
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("扫描已取消");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"扫描失败：{ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_scanCts, cts)) _scanCts = null;
+            cts.Dispose();
+            IsScanning = false;
+            OnPropertyChanged(nameof(ScanSummary));
+        }
+    }
+
+    /// <summary>选中扫描结果时把 IP 回填到输入框，方便直接查看/微调</summary>
+    partial void OnSelectedDeviceChanged(LanDevice? value)
+    {
+        if (value is not null) ServerIp = value.Ip;
+    }
+
+    private bool CanConnectSelectedDevice() =>
+        SelectedDevice is not null && !IsConnected && !IsBusy && !IsScanning;
+
+    /// <summary>直接连接列表里选中的设备（端口自动用 11223）</summary>
+    [RelayCommand(CanExecute = nameof(CanConnectSelectedDevice))]
+    private async Task ConnectSelectedDevice()
+    {
+        if (SelectedDevice is not { } device) return;
+
+        ServerIp = device.Ip;
+        await Connect();
     }
 
     private bool CanDisconnect() => _net.IsConnected && !IsBusy;
@@ -211,7 +320,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void UpdateGamepadStatus() => GamepadStatus = GamepadEnabled
         ? _gamepad.IsConnected
-            ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（±{TiltGamepad.FullLockAngle:0}° 满舵）"
+            ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（倾角 0°~{TiltGamepad.FullLockAngle:0}° 线性映射，超出按满舵截断）"
             : "虚拟方向盘：接入失败，见日志"
         : "虚拟方向盘：未启用";
 
@@ -359,6 +468,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _disposed = true;
 
         StopReconnectLoop();
+
+        _scanCts?.Cancel();
+        _scanCts?.Dispose();
+        _scanCts = null;
+        _scanner.Log -= OnLog;
 
         _net.Log -= OnLog;
         _net.ReadingReceived -= OnReadingReceived;

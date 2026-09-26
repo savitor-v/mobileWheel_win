@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MobileWheel.Win.ViewModels"
+        xmlns:controls="clr-namespace:MobileWheel.Win.Controls"
+        x:Class="MobileWheel.Win.Views.GamepadOverlay"
+        x:DataType="vm:MainWindowViewModel"
+        Title="模拟手柄 · 实时"
+        Width="205" Height="120" CanResize="False" Topmost="True" ShowInTaskbar="False"
+        SystemDecorations="None"
+        Background="#1E293B"
+        WindowStartupLocation="Manual">
+
+  <!-- 注意：MainWindow.axaml 里的 Classes="field" 等样式是窗口作用域的，这里用不到，
+       所以每个 TextBlock 都显式写 Foreground / FontSize -->
+  <Grid Margin="6" RowDefinitions="Auto,*">
+
+    <!-- 标题行：手柄图标 + 倾角 -->
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Panel Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center">
+        <Path Stretch="Uniform" Fill="#E2E8F0"
+              Data="M7,8 H17 C20,8 22,11 22,14 C22,17 19,18 17,16 L15,14 H9 L7,16 C5,18 2,17 2,14 C2,11 4,8 7,8 Z" />
+        <Path Stretch="Uniform" Fill="#1E293B"
+              Data="M6.75,9.75 h1.5 v1.5 h1.5 v1.5 h-1.5 v1.5 h-1.5 v-1.5 h-1.5 v-1.5 h1.5 z M16.5,9.5 a1,1 0 1 0 0,2 a1,1 0 1 0 0,-2 z M14.7,11.3 a1,1 0 1 0 0,2 a1,1 0 1 0 0,-2 z" />
+      </Panel>
+      <TextBlock Grid.Column="1" Text="模拟手柄" Margin="4,0,0,0" FontSize="10"
+                 FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="2" Text="{Binding AngleText}" FontSize="12" FontWeight="Bold"
+                 Foreground="{Binding DirectionBrush}" VerticalAlignment="Center" />
+    </Grid>
+
+    <Grid Grid.Row="1" Margin="0,4,0,0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+
+      <!-- 左：LT 竖条。不用旋转 ProgressBar：小窗里 ProgressBar 的模板尺寸
+           不受 Width/Height 约束，实测会被拉伸到整窗高度，改用 Border 轨道 + 底部填充 -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+        <StackPanel VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="LT" FontSize="8" Foreground="#94A3B8" />
+          <TextBlock Text="{Binding LeftTriggerText}" FontSize="8" Foreground="#E2E8F0" />
+        </StackPanel>
+        <Border Width="9" Height="86" Background="#334155" CornerRadius="3" ClipToBounds="True">
+          <Border VerticalAlignment="Bottom" Height="{Binding LeftTriggerBarHeight}"
+                  Background="#22D3EE" />
+        </Border>
+      </StackPanel>
+
+      <!-- 中：方向盘模拟量，用与大窗口同款的水平仪箭头（0° 居中，可用角度 0°~60°） -->
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+        <controls:LevelGauge Width="70" Height="70" HorizontalAlignment="Center"
+                             Angle="{Binding SteeringPointerAngle}" />
+        <TextBlock Text="{Binding SteeringText}" FontSize="8" FontWeight="Bold"
+                   Foreground="#FBBF24" HorizontalAlignment="Center" />
+      </StackPanel>
+
+      <!-- 右：RT 竖条 -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+        <Border Width="9" Height="86" Background="#334155" CornerRadius="3" ClipToBounds="True">
+          <Border VerticalAlignment="Bottom" Height="{Binding RightTriggerBarHeight}"
+                  Background="#F59E0B" />
+        </Border>
+        <StackPanel VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="RT" FontSize="8" Foreground="#94A3B8" />
+          <TextBlock Text="{Binding RightTriggerText}" FontSize="8" Foreground="#E2E8F0" />
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

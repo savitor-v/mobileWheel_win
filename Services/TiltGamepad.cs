@@ -7,14 +7,15 @@ namespace MobileWheel.Win.Services;
 
 /// <summary>
 /// 把手机横向倾角映射成虚拟 Xbox 360 手柄的左摇杆 X 轴，让游戏把左摇杆当成方向盘：
-/// 手机向左倾斜（angle &gt; 0）= 方向盘左打 = 摇杆 X 取负值，倾角与转角 1:1。
+/// 手机向左倾斜（angle &gt; 0）= 方向盘左打 = 摇杆 X 取负值。
+/// 可用角度 0°~60°：0° 居中，越接近 ±60° 舵量越大，到 ±60° 满舵（超出按满舵截断）。
 /// 手机端左右两侧的竖向滑动条分别映射到 LT / RT 扳机（0..255）。
 /// 依赖已安装的 ViGEmBus 驱动，用户态调用不需要管理员权限。
 /// </summary>
 public sealed class TiltGamepad : IDisposable
 {
-    /// <summary>满舵角度：手机倾斜 ±90° 对应摇杆最左 / 最右</summary>
-    public const double FullLockAngle = 90d;
+    /// <summary>满舵角度：手机倾斜 ±60° 对应摇杆最左 / 最右</summary>
+    public const double FullLockAngle = 60d;
 
     /// <summary>超过该时间没有新数据就自动回中，避免停止监测后方向盘卡在满舵</summary>
     private static readonly TimeSpan DataTimeout = TimeSpan.FromMilliseconds(500);
@@ -77,7 +78,7 @@ public sealed class TiltGamepad : IDisposable
                 _lastRightTrigger = 0;
                 _hasData = false;
 
-                Log?.Invoke(this, $"虚拟 Xbox 360 手柄已接入：左摇杆 X 轴 = 手机倾角（±{FullLockAngle:0}° 满舵），LT/RT = 左右滑动条");
+                Log?.Invoke(this, $"虚拟 Xbox 360 手柄已接入：左摇杆 X 轴 = 手机倾角（0°~{FullLockAngle:0}° 线性映射，超出按满舵截断），LT/RT = 左右滑动条");
             }
             catch (VigemBusNotFoundException ex)
             {
@@ -111,12 +112,21 @@ public sealed class TiltGamepad : IDisposable
         }
     }
 
-    /// <summary>倾角 → 摇杆 X 轴值；向左倾斜取负（左打方向）</summary>
-    private static short ToAxis(double angle)
+    /// <summary>
+    /// 倾角 → 摇杆 X 轴比例（-1..1）。
+    /// 可用角度 0°~<see cref="FullLockAngle"/>：0° 为 0（居中），到 ±60° 线性升到满舵；
+    /// 向左倾斜（angle &gt; 0）返回负值，对应方向盘左打。
+    /// </summary>
+    public static double ToRatio(double angle)
     {
-        var clamped = Math.Clamp(angle, -FullLockAngle, FullLockAngle);
-        return (short)Math.Round(-clamped / FullLockAngle * short.MaxValue);
+        var magnitude = Math.Min(Math.Abs(angle), FullLockAngle);
+        var ratio = magnitude / FullLockAngle;
+        return angle < 0 ? ratio : -ratio;
     }
+
+    /// <summary>倾角 → 摇杆 X 轴值；向左倾斜取负（左打方向）</summary>
+    public static short ToAxis(double angle) =>
+        (short)Math.Round(ToRatio(angle) * short.MaxValue);
 
     /// <summary>扳机值 → 单字节，超出 0..255 的部分夹断</summary>
     private static byte ToTrigger(int value) => (byte)Math.Clamp(value, 0, 255);

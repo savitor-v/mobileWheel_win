@@ -10,6 +10,8 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>MobileWheel.Win</RootNamespace>
     <AssemblyName>mobileWheel_win</AssemblyName>
+    <!-- 程序图标：与界面里「模拟方向盘」前的手柄图标同一份路径数据 -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>

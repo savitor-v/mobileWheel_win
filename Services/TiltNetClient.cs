@@ -8,6 +8,9 @@ namespace MobileWheel.Win.Services;
 /// </summary>
 public sealed class TiltNetClient : IDisposable
 {
+    /// <summary>手机端监听的端口，界面上只需要填 IP，端口固定用这个值</summary>
+    public const int DefaultPort = 11223;
+
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
     private readonly TiltFrameParser _parser = new();
