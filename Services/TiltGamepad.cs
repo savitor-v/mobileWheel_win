@@ -9,7 +9,8 @@ namespace MobileWheel.Win.Services;
 /// 把手机横向倾角映射成虚拟 Xbox 360 手柄的左摇杆 X 轴，让游戏把左摇杆当成方向盘：
 /// 手机向左倾斜（angle &gt; 0）= 方向盘左打 = 摇杆 X 取负值。
 /// 可用角度 0°~60°：0° 居中，越接近 ±60° 舵量越大，到 ±60° 满舵（超出按满舵截断）。
-/// 手机端左右两侧的竖向滑动条分别映射到 LT / RT 扳机（0..255）。
+/// 手机端左右两侧的竖向滑动条分别映射到 LT / RT 扳机（0..255），
+/// 顶部两个按键分别映射到 Xbox 360 手柄的 X / A 按键。
 /// 依赖已安装的 ViGEmBus 驱动，用户态调用不需要管理员权限。
 /// </summary>
 public sealed class TiltGamepad : IDisposable
@@ -28,6 +29,8 @@ public sealed class TiltGamepad : IDisposable
     private short? _lastAxis;
     private byte? _lastLeftTrigger;
     private byte? _lastRightTrigger;
+    private bool? _lastButtonX;
+    private bool? _lastButtonA;
     private DateTime _lastDataAt;
     private bool _hasData;
     private bool _disposed;
@@ -72,13 +75,17 @@ public sealed class TiltGamepad : IDisposable
                 _pad.SetAxisValue(Xbox360Axis.LeftThumbX, 0);
                 _pad.SetSliderValue(Xbox360Slider.LeftTrigger, 0);
                 _pad.SetSliderValue(Xbox360Slider.RightTrigger, 0);
+                _pad.SetButtonState(Xbox360Button.X, false);
+                _pad.SetButtonState(Xbox360Button.A, false);
 
                 _lastAxis = 0;
                 _lastLeftTrigger = 0;
                 _lastRightTrigger = 0;
+                _lastButtonX = false;
+                _lastButtonA = false;
                 _hasData = false;
 
-                Log?.Invoke(this, $"虚拟 Xbox 360 手柄已接入：左摇杆 X 轴 = 手机倾角（0°~{FullLockAngle:0}° 线性映射，超出按满舵截断），LT/RT = 左右滑动条");
+                Log?.Invoke(this, $"虚拟 Xbox 360 手柄已接入：左摇杆 X 轴 = 手机倾角（0°~{FullLockAngle:0}° 线性映射，超出按满舵截断），LT/RT = 左右滑动条，X/A = 顶部两个按键");
             }
             catch (VigemBusNotFoundException ex)
             {
@@ -94,14 +101,14 @@ public sealed class TiltGamepad : IDisposable
     }
 
     /// <summary>
-    /// 把倾角与两个扳机写进虚拟手柄；未接入时静默忽略
+    /// 把倾角、两个扳机与 X / A 按键写进虚拟手柄；未接入时静默忽略
     /// （数据线程直接调用，不加 UI 派发）
     /// </summary>
-    public void Update(double angle, int leftTrigger, int rightTrigger) =>
-        Write(ToAxis(angle), ToTrigger(leftTrigger), ToTrigger(rightTrigger));
+    public void Update(double angle, int leftTrigger, int rightTrigger, bool buttonX, bool buttonA) =>
+        Write(ToAxis(angle), ToTrigger(leftTrigger), ToTrigger(rightTrigger), buttonX, buttonA);
 
-    /// <summary>方向盘回中、扳机松开（断开连接、停止监测时调用）</summary>
-    public void Reset() => Write(0, 0, 0);
+    /// <summary>方向盘回中、扳机松开、按键全部释放（断开连接、停止监测时调用）</summary>
+    public void Reset() => Write(0, 0, 0, false, false);
 
     /// <summary>方向盘回中并拔出虚拟手柄</summary>
     public void Disconnect()
@@ -131,8 +138,8 @@ public sealed class TiltGamepad : IDisposable
     /// <summary>扳机值 → 单字节，超出 0..255 的部分夹断</summary>
     private static byte ToTrigger(int value) => (byte)Math.Clamp(value, 0, 255);
 
-    /// <summary>写入轴与扳机；值没变就不重复下发，省去无效的 USB 报告</summary>
-    private void Write(short axis, byte leftTrigger, byte rightTrigger)
+    /// <summary>写入轴、扳机与按键；值没变就不重复下发，省去无效的 USB 报告</summary>
+    private void Write(short axis, byte leftTrigger, byte rightTrigger, bool buttonX, bool buttonA)
     {
         lock (_sync)
         {
@@ -162,6 +169,18 @@ public sealed class TiltGamepad : IDisposable
                     pad.SetSliderValue(Xbox360Slider.RightTrigger, rightTrigger);
                     _lastRightTrigger = rightTrigger;
                 }
+
+                if (_lastButtonX != buttonX)
+                {
+                    pad.SetButtonState(Xbox360Button.X, buttonX);
+                    _lastButtonX = buttonX;
+                }
+
+                if (_lastButtonA != buttonA)
+                {
+                    pad.SetButtonState(Xbox360Button.A, buttonA);
+                    _lastButtonA = buttonA;
+                }
             }
             catch (Exception ex)
             {
@@ -178,8 +197,8 @@ public sealed class TiltGamepad : IDisposable
             if (DateTime.UtcNow - _lastDataAt <= DataTimeout) return;
 
             _hasData = false;
-            // 数据断了就把方向盘回中、扳机松开，避免游戏里卡住满舵或一直踩油门
-            Write(0, 0, 0);
+            // 数据断了就把方向盘回中、扳机松开、按键释放，避免游戏里卡住满舵或一直踩油门
+            Write(0, 0, 0, false, false);
         }
     }
 
@@ -191,6 +210,8 @@ public sealed class TiltGamepad : IDisposable
         _lastAxis = null;
         _lastLeftTrigger = null;
         _lastRightTrigger = null;
+        _lastButtonX = null;
+        _lastButtonA = null;
         _hasData = false;
 
         if (pad is not null)

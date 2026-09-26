@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("mobileWheel_win")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ac4db2630626d0efeea698f4ba4993f672801f9f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e902f41d4d6ab6c364129d4c699abee764a73c1c")]
 [assembly: System.Reflection.AssemblyProductAttribute("mobileWheel_win")]
 [assembly: System.Reflection.AssemblyTitleAttribute("mobileWheel_win")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

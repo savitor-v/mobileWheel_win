@@ -22,6 +22,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private static readonly IBrush IdleBrush = new SolidColorBrush(Color.Parse("#64748B"));
     private static readonly IBrush LevelBrush = new SolidColorBrush(Color.Parse("#34D399"));
     private static readonly IBrush TiltBrush = new SolidColorBrush(Color.Parse("#FBBF24"));
+    private static readonly IBrush ButtonIdleBrush = new SolidColorBrush(Color.Parse("#475569"));
+    private static readonly IBrush ButtonXActiveBrush = new SolidColorBrush(Color.Parse("#38BDF8"));
+    private static readonly IBrush ButtonAActiveBrush = new SolidColorBrush(Color.Parse("#4ADE80"));
 
     private readonly TiltNetClient _net = new();
     private readonly TiltGamepad _gamepad = new();
@@ -135,7 +138,22 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(RightTriggerBarHeight))]
     private int _rightTrigger;
 
+    /// <summary>手机端顶部「X」按键是否按下</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ButtonXBrush))]
+    private bool _buttonXPressed;
+
+    /// <summary>手机端顶部「A」按键是否按下</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ButtonABrush))]
+    private bool _buttonAPressed;
+
     public IBrush StatusBrush => IsConnected ? ConnectedBrush : IdleBrush;
+
+    /// <summary>X / A 按键指示灯：按下时点亮</summary>
+    public IBrush ButtonXBrush => ButtonXPressed ? ButtonXActiveBrush : ButtonIdleBrush;
+
+    public IBrush ButtonABrush => ButtonAPressed ? ButtonAActiveBrush : ButtonIdleBrush;
 
     public IBrush DirectionBrush => Math.Abs(Angle) <= 0.5 ? LevelBrush : TiltBrush;
 
@@ -320,7 +338,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void UpdateGamepadStatus() => GamepadStatus = GamepadEnabled
         ? _gamepad.IsConnected
-            ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（倾角 0°~{TiltGamepad.FullLockAngle:0}° 线性映射，超出按满舵截断）"
+            ? $"虚拟方向盘：已接入 · 左摇杆 X 轴（倾角 0°~{TiltGamepad.FullLockAngle:0}° 线性映射，超出按满舵截断）· LT/RT 对应左右滑动条 · X/A 对应顶部两个按键"
             : "虚拟方向盘：接入失败，见日志"
         : "虚拟方向盘：未启用";
 
@@ -378,7 +396,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void OnReadingReceived(object? sender, TiltReading reading)
     {
         // 在数据线程直接喂给虚拟手柄，省掉一次 UI 线程派发带来的延迟
-        if (GamepadEnabled) _gamepad.Update(reading.Angle, reading.LeftTrigger, reading.RightTrigger);
+        if (GamepadEnabled)
+        {
+            _gamepad.Update(reading.Angle, reading.LeftTrigger, reading.RightTrigger,
+                reading.ButtonX, reading.ButtonA);
+        }
 
         Dispatcher.UIThread.Post(() =>
         {
@@ -391,6 +413,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 ? DateTimeOffset.FromUnixTimeMilliseconds(reading.Timestamp).LocalDateTime.ToString("HH:mm:ss.fff")
                 : DateTime.Now.ToString("HH:mm:ss.fff");
             ReadingCount++;
+
+            // 按键只在状态翻转时写日志，避免 60Hz 刷屏
+            if (reading.ButtonX != ButtonXPressed) AppendLog(reading.ButtonX ? "X 键 按下" : "X 键 松开");
+            if (reading.ButtonA != ButtonAPressed) AppendLog(reading.ButtonA ? "A 键 按下" : "A 键 松开");
+            ButtonXPressed = reading.ButtonX;
+            ButtonAPressed = reading.ButtonA;
 
             var now = DateTime.Now;
             if (now - _lastDataLogAt < DataLogInterval) return;
@@ -423,6 +451,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             Direction = "等待数据";
             LeftTrigger = 0;
             RightTrigger = 0;
+            ButtonXPressed = false;
+            ButtonAPressed = false;
             RotationText = "—";
             UpdatedAtText = "—";
             // 没数据了先把方向盘回中，避免游戏里保持满舵

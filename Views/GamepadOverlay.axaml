@@ -14,8 +14,8 @@
        所以每个 TextBlock 都显式写 Foreground / FontSize -->
   <Grid Margin="6" RowDefinitions="Auto,*">
 
-    <!-- 标题行：手柄图标 + 倾角 -->
-    <Grid ColumnDefinitions="Auto,*,Auto">
+    <!-- 标题行：手柄图标 + 名称 + 手机顶部 X/A 按键状态 + 倾角 -->
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
       <Panel Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center">
         <Path Stretch="Uniform" Fill="#E2E8F0"
               Data="M7,8 H17 C20,8 22,11 22,14 C22,17 19,18 17,16 L15,14 H9 L7,16 C5,18 2,17 2,14 C2,11 4,8 7,8 Z" />
@@ -24,8 +24,23 @@
       </Panel>
       <TextBlock Grid.Column="1" Text="模拟手柄" Margin="4,0,0,0" FontSize="10"
                  FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" />
-      <TextBlock Grid.Column="2" Text="{Binding AngleText}" FontSize="12" FontWeight="Bold"
-                 Foreground="{Binding DirectionBrush}" VerticalAlignment="Center" />
+
+      <!-- X / A 按键指示灯：按下时点亮（左 X、右 A，与手机端一致） -->
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1"
+                CornerRadius="3" Padding="5,0">
+          <TextBlock Text="X" FontSize="10" FontWeight="Bold"
+                     Foreground="{Binding ButtonXBrush}" />
+        </Border>
+        <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1"
+                CornerRadius="3" Padding="5,0">
+          <TextBlock Text="A" FontSize="10" FontWeight="Bold"
+                     Foreground="{Binding ButtonABrush}" />
+        </Border>
+      </StackPanel>
+
+      <TextBlock Grid.Column="4" Text="{Binding AngleText}" Margin="4,0,0,0" FontSize="12"
+                 FontWeight="Bold" Foreground="{Binding DirectionBrush}" VerticalAlignment="Center" />
     </Grid>
 
     <Grid Grid.Row="1" Margin="0,4,0,0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">

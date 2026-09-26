@@ -144,7 +144,8 @@
               </StackPanel>
             </StackPanel>
           </Grid>
-          <TextBlock Text="{Binding AngleText}" FontSize="46" FontWeight="Bold"
+          <!-- 与上面的水平仪多留一点间距，别让大号角度数字贴住表盘 -->
+          <TextBlock Text="{Binding AngleText}" FontSize="46" FontWeight="Bold" Margin="0,16,0,0"
                      Foreground="{Binding DirectionBrush}" HorizontalAlignment="Center" />
           <TextBlock Text="{Binding Direction}" FontSize="18"
                      Foreground="{Binding DirectionBrush}" HorizontalAlignment="Center" />
@@ -155,6 +156,20 @@
             <TextBlock Grid.Row="1" Text="最近更新" Classes="field" />
             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdatedAtText}" FontSize="12" />
           </Grid>
+
+          <!-- 手机顶部两个按键（左 X、右 A）的实时状态：按下时指示灯点亮 -->
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+            <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1"
+                    CornerRadius="6" Padding="14,3" MinWidth="46">
+              <TextBlock Text="X" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"
+                         Foreground="{Binding ButtonXBrush}" />
+            </Border>
+            <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1"
+                    CornerRadius="6" Padding="14,3" MinWidth="46">
+              <TextBlock Text="A" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"
+                         Foreground="{Binding ButtonABrush}" />
+            </Border>
+          </StackPanel>
         </StackPanel>
       </Grid>
     </Border>
