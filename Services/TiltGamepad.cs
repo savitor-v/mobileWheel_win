@@ -43,6 +43,13 @@ public sealed class TiltGamepad : IDisposable
     /// <summary>文本日志，可能在本类内部线程或调用线程触发</summary>
     public event EventHandler<string>? Log;
 
+    /// <summary>
+    /// 游戏下发给虚拟手柄的震动强度（大 / 小马达，0~255）。
+    /// ViGEmBus 会把游戏的输出报告回传给客户端，这里再往上抛，
+    /// 由界面转发给手机去振动。可能在 ViGEm 的内部线程触发。
+    /// </summary>
+    public event EventHandler<(byte Large, byte Small)>? FeedbackReceived;
+
     /// <summary>虚拟手柄是否已接入系统</summary>
     public bool IsConnected
     {
@@ -65,6 +72,9 @@ public sealed class TiltGamepad : IDisposable
                 _pad = _client.CreateXbox360Controller();
                 _pad.AutoSubmitReport = true;
                 _pad.Connect();
+
+                // 订阅之后 ViGEmBus 才会把游戏写给手柄的震动值回传过来
+                _pad.FeedbackReceived += OnPadFeedback;
 
                 // ViGEmBus 新建虚拟手柄的摇杆/扳机初始值并不都是 0（实测左摇杆 X 读到 -3356），
                 // 而 ViGEm.NET 不会重复下发与上次完全相同的报告，
@@ -189,6 +199,10 @@ public sealed class TiltGamepad : IDisposable
         }
     }
 
+    /// <summary>游戏写给手柄的震动值 → 抛给界面转发给手机</summary>
+    private void OnPadFeedback(object sender, Xbox360FeedbackReceivedEventArgs e) =>
+        FeedbackReceived?.Invoke(this, (e.LargeMotor, e.SmallMotor));
+
     private void CheckDataTimeout()
     {
         lock (_sync)
@@ -218,6 +232,7 @@ public sealed class TiltGamepad : IDisposable
         {
             try
             {
+                pad.FeedbackReceived -= OnPadFeedback;
                 pad.Disconnect();
             }
             catch (Exception ex)

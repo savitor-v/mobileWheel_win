@@ -19,6 +19,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>断线后自动重连的间隔</summary>
     private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
 
+    /// <summary>震动值没变时的保活间隔：手机端 400ms 收不到新帧就会停振</summary>
+    private static readonly TimeSpan RumbleKeepAlive = TimeSpan.FromMilliseconds(250);
+
     private static readonly IBrush ConnectedBrush = new SolidColorBrush(Color.Parse("#34D399"));
     private static readonly IBrush IdleBrush = new SolidColorBrush(Color.Parse("#64748B"));
     private static readonly IBrush LevelBrush = new SolidColorBrush(Color.Parse("#34D399"));
@@ -34,6 +37,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private DateTime _lastDataLogAt = DateTime.MinValue;
     private bool _disconnectRequested;
     private bool _disposed;
+
+    /// <summary>上一次回传给手机的震动值，用来判断是否需要立刻发送</summary>
+    private byte _lastRumbleLarge;
+    private byte _lastRumbleSmall;
+    private DateTime _lastRumbleSentAt = DateTime.MinValue;
 
     /// <summary>当前已连接目标的名字，用于状态栏显示</summary>
     private string? _connectedLabel;
@@ -53,6 +61,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _net.ReadingReceived += OnReadingReceived;
         _net.ConnectionStateChanged += (_, connected) => OnConnectionStateChanged(connected);
         _gamepad.Log += OnLog;
+        _gamepad.FeedbackReceived += OnGamepadFeedback;
         _scanner.Log += OnLog;
 
         AppendLog("就绪：手机上点“开始监测”与“开启局域网”，再用左侧「扫描设备」或直接填手机 IP");
@@ -540,6 +549,22 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void OnLog(object? sender, string message) =>
         Dispatcher.UIThread.Post(() => AppendLog(message));
 
+    /// <summary>
+    /// 虚拟手柄收到的游戏震动 → 回传给手机（可能从 ViGEm 的内部线程触发）。
+    /// 值一变就立刻发（尤其掉到 0 时手机要马上停振）；值没变则每 <see cref="RumbleKeepAlive"/> 补一帧，
+    /// 免得手机端长时间收不到新帧触发超时看门狗而停振。
+    /// </summary>
+    private void OnGamepadFeedback(object? sender, (byte Large, byte Small) e)
+    {
+        var changed = e.Large != _lastRumbleLarge || e.Small != _lastRumbleSmall;
+        if (!changed && DateTime.UtcNow - _lastRumbleSentAt < RumbleKeepAlive) return;
+
+        _lastRumbleLarge = e.Large;
+        _lastRumbleSmall = e.Small;
+        _lastRumbleSentAt = DateTime.UtcNow;
+        _net.SendRumble(e.Large, e.Small);
+    }
+
     private void AppendLog(string message)
     {
         LogEntries.Insert(0, $"{DateTime.Now:HH:mm:ss.fff}  {message}");
@@ -579,6 +604,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _net.Dispose();
 
         _gamepad.Log -= OnLog;
+        _gamepad.FeedbackReceived -= OnGamepadFeedback;
         _gamepad.Dispose();
     }
 }

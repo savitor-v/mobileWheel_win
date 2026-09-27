@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Text;
 using MobileWheel.Win.Models;
 
 namespace MobileWheel.Win.Services;
@@ -14,6 +15,9 @@ public sealed class TiltNetClient : IDisposable
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
     private readonly TiltFrameParser _parser = new();
+
+    /// <summary>写入方向的串行锁：震动值可能在 ViGEm 的内部线程上到达</summary>
+    private readonly object _writeLock = new();
 
     private TcpClient? _client;
     private NetworkStream? _stream;
@@ -82,6 +86,30 @@ public sealed class TiltNetClient : IDisposable
 
     /// <summary>断开连接（用户主动调用）</summary>
     public async Task DisconnectAsync() => await DisconnectAsync(notifyStateChange: true);
+
+    /// <summary>
+    /// 把虚拟手柄收到的震动强度回传给手机，让手机跟着震（0~255）。
+    /// 未连接时静默忽略；写入失败也不抛异常，交给读取线程去发现断开。
+    /// 可能从 ViGEm 的内部线程调用，所以写入要加锁串行化。
+    /// </summary>
+    public void SendRumble(byte large, byte small)
+    {
+        var stream = _stream;
+        if (stream is null) return;
+
+        var bytes = Encoding.UTF8.GetBytes($"{{\"large\":{large},\"small\":{small}}}\n");
+        try
+        {
+            lock (_writeLock)
+            {
+                stream.Write(bytes, 0, bytes.Length);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
+        {
+            // 连接刚好断掉，读取线程会负责收尾
+        }
+    }
 
     private async Task DisconnectAsync(bool notifyStateChange)
     {
